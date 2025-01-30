@@ -1,9 +1,19 @@
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <iostream>
+#include <iterator>
 #include <print>
 #include <random>
+#include <streambuf>
+#include <string>
 
 template <std::size_t numberOfPlayers, typename ResultType, typename DistType,
           typename Engine>
@@ -32,34 +42,58 @@ generateMultipleRounds(DistType &dist, Engine &generator) {
   });
   return results;
 }
+template <std::size_t numberOfPlayers, std::size_t numberOfRounds>
+[[nodiscard]]
+constexpr std::array<std::size_t, numberOfPlayers> scorePlayers(
+    std::array<std::array<std::int64_t, numberOfPlayers>, numberOfRounds> rolls,
+    std::array<std::size_t, numberOfPlayers> startingScores = {}) {
+  std::ranges::for_each(rolls, [&startingScores](auto round) {
+    auto max = std::ranges::max_element(round);
+    if (max == std::ranges::end(round))
+      return;
+    if (std::ranges::count(round, *max) > 1)
+      return;
+    startingScores[std::ranges::distance(std::begin(round), max)]++;
+  });
+  return startingScores;
+}
+
+template <std::size_t numberOfPlayers>
+[[nodiscard]]
+constexpr std::array<std::size_t, numberOfPlayers>
+readPlayerScores(std::filesystem::path pathOfFile) {
+  auto startingScores = std::array<std::size_t, 3>{};
+  if (std::filesystem::is_regular_file(pathOfFile)) {
+    {
+      auto inputFile = std::ifstream("./lol.txt");
+      auto line = std::string{};
+      auto currentPlayer = 0;
+      while (std::getline(inputFile, line)) {
+        try {
+          startingScores[currentPlayer] = std::stoull(line);
+          currentPlayer++;
+        } catch (std::exception &err) {
+          std::cerr << err.what();
+          throw err;
+        }
+      }
+    }
+  }
+  return startingScores;
+}
 
 int main() {
   auto generator = std::default_random_engine{};
   auto dist = std::uniform_int_distribution<std::int64_t>(1, 6);
-  auto points = std::array<std::size_t, 3>{};
-  for (auto it : generateMultipleRounds<3, 5>(dist, generator)) {
-    auto maxScore = 0;
-    auto maxPlayerNumberId = -1;
-    auto currentId = 0;
-    for (auto score : it) {
-      if (score > maxScore) {
-        maxPlayerNumberId = currentId;
-        maxScore = score;
-      } else if (score == maxScore) {
-        std::print("Current score: {}, maxScore: {} \t", score, maxScore);
-        maxPlayerNumberId = -1;
-      }
-      currentId++;
-
-      std::print("{},", score);
-    }
-    std::println();
-    if (maxPlayerNumberId == -1) {
-      std::println("No max player score");
-      continue;
-    }
-    points[maxPlayerNumberId]++;
+  auto outputToFile = std::string{};
+  auto startingScores =
+      readPlayerScores<3>(std::filesystem::current_path() / "lol.txt");
+  for (auto lslfksj : startingScores) {
+    std::print("{},", lslfksj);
   }
-  for (auto playerScore : points)
-    std::println("Score: {}", playerScore);
+  std::ranges::for_each(
+      scorePlayers(generateMultipleRounds<3, 5>(dist, generator),
+                   startingScores),
+      [&outputToFile](auto i) { outputToFile += std::format("{}\n", i); });
+  std::ofstream("./lol.txt") << outputToFile;
 }
