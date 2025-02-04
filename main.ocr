@@ -1,0 +1,77 @@
+constant usernameFile = "./users.txt"
+constant passwordFile = "./users.txt"
+function getUserIndex(matcher, filename)
+  file = openRead(filename)
+  fileLines = file.split('\n')
+  for i = 0 to fileLines.length() - 1
+    if matcher(fileLines[i]) then
+      file.close()
+      return i
+    endif
+  next i
+  file.close()
+  return -1
+endfunction
+
+
+function matchPassword(matcher, filename, index)
+  file = openRead(filename)
+  fileLines = file.split('\n')
+  if index > len(fileLines) then
+    print("Internal error (File storage mismatch)")
+    throw runtimeError()
+  endif
+  return matcher(fileLines[index])
+  file.close()
+endfunction
+
+
+procedure signIn()
+  username = input("Enter username")
+  password = input("Enter password", noShow = true)
+  indexOfUser = getUserIndex([&username](val){return username == val}, storedFile)
+  if  indexOfUser == -1 then
+    print("No such user")
+    return
+  endif
+  if matchPassword([&password](val){return password == val}, passwordFile,indexOfUser )
+    print("Success in logging in")
+  else
+    print("Incorrect password")
+  endif
+endprocedure
+
+procedure signUp(passedArguments)
+  username = input("Enter username")
+  if getUserIndex([&username](val){return username == val}, storedFile) != -1 then
+    print("User exists")
+    return
+  endif
+
+  password = input("Enter password", noShow = true)
+  // Technically unsafe but i am lazy so yeah
+  passFile = openRead(passwordFile)
+  userFile = openRead(usernameFile)
+  userFile.addline(username)
+  passFile.addline(username)
+  userFile.close()
+  passFile.close()
+  print("User created successfully")
+endprocedure
+
+procedure main(passedArguments)
+
+  if passedArguments[1] != "sign" then
+      print("No such arguments")
+      return
+  endif
+
+  if passedArguments[2] == "in" then
+      signIn()
+  else if passedArguments[2] == "up" then
+      signUp()
+  else
+      print("No such arguments")
+  endif
+
+endprocedure
