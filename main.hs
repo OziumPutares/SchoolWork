@@ -73,7 +73,6 @@ handleLogin =
         putStrLn "Successfully signed in"
       else do
         putStrLn "Unsuccessful login"
-        print usernameToPassword
 
 getUsername :: IO String
 getUsername = do
